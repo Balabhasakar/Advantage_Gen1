@@ -7,6 +7,8 @@ const { Pool } = require("pg");
 const sharp    = require("sharp");
 const multer   = require("multer");
 const path     = require("path");
+const jwt      = require("jsonwebtoken");
+const bcrypt   = require("bcryptjs");
 require("dotenv").config();
 
 const app = express();
@@ -63,6 +65,22 @@ const pool = new Pool({
 pool.connect()
   .then(() => console.log("🐘 PostgreSQL connected!"))
   .catch(err => console.error("❌ PostgreSQL connection failed:", err.message));
+
+
+/* ─────────────────────────────────────────
+   JWT AUTH MIDDLEWARE
+───────────────────────────────────────── */
+function authMiddleware(req, res, next) {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) return res.status(401).json({ error: "No token provided" });
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || "advantage_secret_key");
+    req.user = decoded;
+    next();
+  } catch {
+    res.status(401).json({ error: "Invalid or expired token" });
+  }
+}
 
 /* ─────────────────────────────────────────
    PLATFORM DIMENSIONS
@@ -283,7 +301,7 @@ app.post("/api/generate-copy", async (req, res) => {
    ROUTE 3: POST /api/generate-all
    ⚡ Parallel image + copy + composite + save
 ───────────────────────────────────────── */
-app.post("/api/generate-all", async (req, res) => {
+app.post("/api/generate-all", authMiddleware, async (req, res) => {
   try {
     const { prompt, voice = "professional", platform = "instagram", ctaText = "", logoUrl = "" } = req.body;
     if (!prompt) return res.status(400).json({ error: "Prompt is required" });
@@ -336,6 +354,7 @@ app.post("/api/generate-all", async (req, res) => {
     const imageUrl = imageResult.status === "fulfilled" ? imageResult.value.imageUrl : null;
     const caption  = copyResult.status  === "fulfilled" ? copyResult.value.caption   : null;
     const hashtags = copyResult.status  === "fulfilled" ? copyResult.value.hashtags  : [];
+    const headline = copyResult.status  === "fulfilled" ? copyResult.value.headline  : null;
 
     // Debug logs
     console.log("🖼️  imageResult status:", imageResult.status);
@@ -345,9 +364,9 @@ app.post("/api/generate-all", async (req, res) => {
 
     if (imageUrl) {
       await pool.query(
-        `INSERT INTO ads (prompt, image_url, caption, hashtags, voice, platform)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [prompt, imageUrl, caption, hashtags, voice, platform]
+        `INSERT INTO ads (prompt, image_url, caption, hashtags, headline, voice, platform, user_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [prompt, imageUrl, caption, hashtags, headline, voice, platform, req.user?.id || null]
       );
       console.log("💾 Saved to PostgreSQL!");
     } else {
@@ -355,7 +374,6 @@ app.post("/api/generate-all", async (req, res) => {
     }
 
     console.log("✅ All done!");
-    const headline = copyResult.status === "fulfilled" ? copyResult.value.headline : null;
     res.json({ imageUrl, caption, hashtags, headline, enhancedPrompt });
 
   } catch (error) {
@@ -370,7 +388,7 @@ app.post("/api/generate-all", async (req, res) => {
    ⚡ Generates 3 A/B variants in parallel
    Each variant: different image style + voice
 ───────────────────────────────────────── */
-app.post("/api/generate-variants", async (req, res) => {
+app.post("/api/generate-variants", authMiddleware, async (req, res) => {
   try {
     const { prompt, platform = "instagram", ctaText = "", logoUrl = "", voice = "professional" } = req.body;
     if (!prompt) return res.status(400).json({ error: "Prompt is required" });
@@ -556,13 +574,15 @@ app.post("/api/upload-logo", upload.single("logo"), async (req, res) => {
 /* ─────────────────────────────────────────
    ROUTE 6: GET /api/ads
 ───────────────────────────────────────── */
-app.get("/api/ads", async (req, res) => {
+app.get("/api/ads", authMiddleware, async (req, res) => {
   try {
     const result = await pool.query(
-      "SELECT * FROM ads ORDER BY created_at DESC LIMIT 20"
+      "SELECT * FROM ads WHERE user_id = $1 ORDER BY created_at DESC LIMIT 20",
+      [req.user.id]
     );
     const rows = result.rows.map(row => ({
       ...row,
+      headline: row.headline || null,
       hashtags: Array.isArray(row.hashtags)
         ? row.hashtags
         : typeof row.hashtags === "string"
@@ -579,9 +599,9 @@ app.get("/api/ads", async (req, res) => {
 /* ─────────────────────────────────────────
    ROUTE 7: DELETE /api/ads/:id
 ───────────────────────────────────────── */
-app.delete("/api/ads/:id", async (req, res) => {
+app.delete("/api/ads/:id", authMiddleware, async (req, res) => {
   try {
-    await pool.query("DELETE FROM ads WHERE id = $1", [req.params.id]);
+    await pool.query("DELETE FROM ads WHERE id = $1 AND user_id = $2", [req.params.id, req.user.id]);
     res.json({ success: true });
   } catch (error) {
     console.error("❌ Delete error:", error.message);
@@ -593,21 +613,191 @@ app.delete("/api/ads/:id", async (req, res) => {
    ROUTE: POST /api/save-ad
    Save a selected variant to DB
 ───────────────────────────────────────── */
-app.post("/api/save-ad", async (req, res) => {
+app.post("/api/save-ad", authMiddleware, async (req, res) => {
   try {
     const { prompt, imageUrl, caption, hashtags, headline, voice, platform } = req.body;
     if (!imageUrl) return res.status(400).json({ error: "imageUrl is required" });
 
     await pool.query(
-      `INSERT INTO ads (prompt, image_url, caption, hashtags, voice, platform)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [prompt, imageUrl, caption, hashtags || [], voice, platform]
+      `INSERT INTO ads (prompt, image_url, caption, hashtags, headline, voice, platform, user_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [prompt, imageUrl, caption, hashtags || [], headline || null, voice, platform, req.user?.id || null]
     );
     console.log("💾 Variant saved to PostgreSQL!");
     res.json({ success: true });
   } catch (error) {
     console.error("❌ Save ad error:", error.message);
     res.status(500).json({ error: "Failed to save ad" });
+  }
+});
+
+/* ─────────────────────────────────────────
+   AUTH ROUTES
+───────────────────────────────────────── */
+
+// Create users table on startup
+pool.query(`
+  CREATE TABLE IF NOT EXISTS users (
+    id         SERIAL PRIMARY KEY,
+    name       TEXT NOT NULL,
+    email      TEXT UNIQUE NOT NULL,
+    password   TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+  )
+`).then(() => console.log("✅ Users table ready"))
+  .catch(e => console.error("❌ Users table error:", e.message));
+
+// SIGNUP
+app.post("/api/auth/signup", async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+    if (!name || !email || !password)
+      return res.status(400).json({ error: "All fields required" });
+    if (password.length < 6)
+      return res.status(400).json({ error: "Password must be at least 6 characters" });
+
+    // Check if email exists
+    const existing = await pool.query("SELECT id FROM users WHERE email = $1", [email]);
+    if (existing.rows.length > 0)
+      return res.status(400).json({ error: "Email already registered" });
+
+    // Hash password
+    const hashed = await bcrypt.hash(password, 10);
+
+    // Save user
+    const result = await pool.query(
+      "INSERT INTO users (name, email, password) VALUES ($1, $2, $3) RETURNING id, name, email",
+      [name, email, hashed]
+    );
+    const user = result.rows[0];
+
+    // Generate token
+    const token = jwt.sign(
+      { id: user.id, name: user.name, email: user.email },
+      process.env.JWT_SECRET || "advantage_secret_key",
+      { expiresIn: "7d" }
+    );
+
+    console.log(`✅ New user signed up: ${email}`);
+    res.json({ token, user: { id: user.id, name: user.name, email: user.email } });
+
+  } catch (error) {
+    console.error("❌ Signup error:", error.message);
+    res.status(500).json({ error: "Signup failed" });
+  }
+});
+
+// LOGIN
+app.post("/api/auth/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password)
+      return res.status(400).json({ error: "Email and password required" });
+
+    // Find user
+    const result = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
+    if (result.rows.length === 0)
+      return res.status(400).json({ error: "Invalid email or password" });
+
+    const user = result.rows[0];
+
+    // Check password
+    const valid = await bcrypt.compare(password, user.password);
+    if (!valid)
+      return res.status(400).json({ error: "Invalid email or password" });
+
+    // Generate token
+    const token = jwt.sign(
+      { id: user.id, name: user.name, email: user.email },
+      process.env.JWT_SECRET || "advantage_secret_key",
+      { expiresIn: "7d" }
+    );
+
+    console.log(`✅ User logged in: ${email}`);
+    res.json({ token, user: { id: user.id, name: user.name, email: user.email } });
+
+  } catch (error) {
+    console.error("❌ Login error:", error.message);
+    res.status(500).json({ error: "Login failed" });
+  }
+});
+
+// GET PROFILE (protected)
+app.get("/api/auth/me", authMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query(
+      "SELECT id, name, email, created_at FROM users WHERE id = $1",
+      [req.user.id]
+    );
+    if (result.rows.length === 0)
+      return res.status(404).json({ error: "User not found" });
+    res.json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch profile" });
+  }
+});
+
+/* ─────────────────────────────────────────
+   ROUTE: GET /api/profile/stats
+   Returns user profile + real ad stats
+───────────────────────────────────────── */
+app.get("/api/profile/stats", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    // Get user info
+    const userResult = await pool.query(
+      "SELECT id, name, email, created_at FROM users WHERE id = $1",
+      [userId]
+    );
+    if (userResult.rows.length === 0)
+      return res.status(404).json({ error: "User not found" });
+
+    const user = userResult.rows[0];
+
+    // Get total ads generated
+    const totalAds = await pool.query(
+      "SELECT COUNT(*) FROM ads WHERE user_id = $1",
+      [userId]
+    );
+
+    // Get ads by platform
+    const byPlatform = await pool.query(
+      "SELECT platform, COUNT(*) as count FROM ads WHERE user_id = $1 GROUP BY platform",
+      [userId]
+    );
+
+    // Get ads by voice
+    const byVoice = await pool.query(
+      "SELECT voice, COUNT(*) as count FROM ads WHERE user_id = $1 GROUP BY voice",
+      [userId]
+    );
+
+    // Get recent 3 ads
+    const recentAds = await pool.query(
+      "SELECT id, image_url, caption, headline, created_at FROM ads WHERE user_id = $1 ORDER BY created_at DESC LIMIT 3",
+      [userId]
+    );
+
+    // Credits: 100 free - ads generated (each ad costs 1 credit)
+    const adsCount  = parseInt(totalAds.rows[0].count);
+    const credits   = Math.max(0, 100 - adsCount);
+
+    res.json({
+      user,
+      stats: {
+        totalAds:   adsCount,
+        credits,
+        maxCredits: 100,
+        byPlatform: byPlatform.rows,
+        byVoice:    byVoice.rows,
+        recentAds:  recentAds.rows,
+        memberSince: user.created_at,
+      },
+    });
+  } catch (error) {
+    console.error("❌ Profile stats error:", error.message);
+    res.status(500).json({ error: "Failed to fetch profile stats" });
   }
 });
 

@@ -7,6 +7,7 @@ import {
   Instagram, Linkedin, Smartphone, Square, Upload, X
 } from "lucide-react";
 import toast from "react-hot-toast";
+import useAuthStore from "../../context/useAuthStore";
 
 const PLATFORMS = [
   { id: "instagram", label: "Instagram", icon: Instagram, ratio: "1:1"    },
@@ -16,15 +17,17 @@ const PLATFORMS = [
 ];
 
 const VOICE_STYLES = {
-  professional: { color: "text-blue-300",   bg: "bg-blue-500/10",   border: "border-blue-500/25",   label: "Professional" },
-  witty:        { color: "text-yellow-300", bg: "bg-yellow-500/10", border: "border-yellow-500/25", label: "Witty"        },
-  urgent:       { color: "text-red-300",    bg: "bg-red-500/10",    border: "border-red-500/25",    label: "Urgent"       },
+  professional:  { color: "text-blue-300",   bg: "bg-blue-500/10",   border: "border-blue-500/25",   label: "Professional"  },
+  witty:         { color: "text-yellow-300", bg: "bg-yellow-500/10", border: "border-yellow-500/25", label: "Witty"         },
+  urgent:        { color: "text-red-300",    bg: "bg-red-500/10",    border: "border-red-500/25",    label: "Urgent"        },
+  inspirational: { color: "text-emerald-300",bg: "bg-emerald-500/10",border: "border-emerald-500/25",label: "Inspirational" },
 };
 
 const VARIANT_LABELS = {
-  A: { name: "Variant A", desc: "Clean & Professional",  accent: "from-blue-500 to-violet-500"   },
-  B: { name: "Variant B", desc: "Bold & Witty",          accent: "from-yellow-500 to-orange-500" },
-  C: { name: "Variant C", desc: "Dramatic & Urgent",     accent: "from-red-500 to-pink-500"      },
+  A: { name: "Variant A", desc: "Clean & Professional",   accent: "from-blue-500 to-violet-500"   },
+  B: { name: "Variant B", desc: "Bold & Witty",           accent: "from-yellow-500 to-orange-500" },
+  C: { name: "Variant C", desc: "Dramatic & Urgent",      accent: "from-red-500 to-pink-500"      },
+  D: { name: "Variant D", desc: "Warm & Inspirational",   accent: "from-emerald-500 to-cyan-500"  },
 };
 
 export default function Variants() {
@@ -33,6 +36,7 @@ export default function Variants() {
 
   const [prompt,       setPrompt]       = useState(location.state?.prompt || "");
   const [platform,     setPlatform]     = useState(location.state?.platform || "instagram");
+  const voice = location.state?.voice || "professional";
   const [ctaText,      setCtaText]      = useState(location.state?.ctaText   || "Shop Now");
   const [logoUrl,      setLogoUrl]      = useState(location.state?.logoUrl   || "");
   const [logoPreview,  setLogoPreview]  = useState(null);
@@ -74,10 +78,11 @@ export default function Variants() {
     setVariants([]);
     setSelected(null);
     try {
+      const token = useAuthStore.getState().token;
       const res  = await fetch("http://localhost:5000/api/generate-variants", {
         method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ prompt, platform, ctaText, logoUrl }),
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body:    JSON.stringify({ prompt, platform, ctaText, logoUrl, voice }),
       });
       const data = await res.json();
       console.log("Variants response:", JSON.stringify(data, null, 2));
@@ -107,9 +112,10 @@ export default function Variants() {
   const openInStudio = async (variant) => {
     try {
       // Save ONLY this selected variant to DB
+      const saveToken = useAuthStore.getState().token;
       await fetch("http://localhost:5000/api/save-ad", {
         method:  "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${saveToken}` },
         body: JSON.stringify({
           prompt,
           imageUrl:  variant.imageUrl,
@@ -148,7 +154,7 @@ export default function Variants() {
             A/B Variant Generator
           </span>
           <span className="text-[10px] px-2 py-0.5 rounded-full bg-violet-500/15 text-violet-300 border border-violet-500/25">
-            3 versions · 1 prompt
+            3 voices · excluding {voice}
           </span>
         </div>
       </div>
@@ -239,18 +245,18 @@ export default function Variants() {
               bg-gradient-to-r from-violet-500 to-cyan-500 shadow-lg shadow-violet-500/25
               disabled:opacity-60 disabled:cursor-not-allowed transition-all">
             {loading
-              ? <><RefreshCw size={15} className="animate-spin" /> Generating 3 variants in parallel...</>
+              ? <><RefreshCw size={15} className="animate-spin" /> Generating 3 variants...</>
               : <><Sparkles size={15} /> Generate 3 A/B Variants</>}
           </motion.button>
 
           {loading && (
             <div className="mt-4 grid grid-cols-3 gap-3">
-              {["A · Professional","B · Witty","C · Urgent"].map((label, i) => (
-                <motion.div key={label}
+              {(["professional","witty","urgent","inspirational"].filter(v => v !== voice)).map((v, i) => (
+                <motion.div key={v}
                   initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.2 }}
                   className="flex items-center gap-2 p-3 rounded-xl bg-white/4 border border-white/8">
                   <div className="w-4 h-4 rounded-full border-2 border-violet-500 border-t-transparent animate-spin shrink-0" />
-                  <span className="text-xs text-gray-400">{label}</span>
+                  <span className="text-xs text-gray-400 capitalize">{["A","B","C"][i]} · {v}</span>
                 </motion.div>
               ))}
             </div>

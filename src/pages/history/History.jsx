@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Trash2, Wand2, Copy, CheckCheck, Clock, Image as ImageIcon } from "lucide-react";
 import toast from "react-hot-toast";
+import useAuthStore from "../../context/useAuthStore";
 
 export default function History() {
   const navigate = useNavigate();
@@ -12,7 +13,7 @@ export default function History() {
 
   /* ── fetch ads ── */
   useEffect(() => {
-    fetch("http://localhost:5000/api/ads")
+    fetch("http://localhost:5000/api/ads", { headers: { Authorization: `Bearer ${useAuthStore.getState().token}` } })
       .then(r => r.json())
       .then(data => { setAds(data); setLoading(false); })
       .catch(() => { toast.error("Could not load history"); setLoading(false); });
@@ -21,7 +22,7 @@ export default function History() {
   /* ── delete ad ── */
   const handleDelete = async (id) => {
     try {
-      await fetch(`http://localhost:5000/api/ads/${id}`, { method: "DELETE" });
+      await fetch(`http://localhost:5000/api/ads/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${useAuthStore.getState().token}` } });
       setAds(prev => prev.filter(a => a.id !== id));
       toast.success("Deleted!");
     } catch {
@@ -115,7 +116,7 @@ export default function History() {
                 >
                   {/* IMAGE */}
                   <div className="relative h-48 overflow-hidden bg-black/40 cursor-pointer"
-                    onClick={() => navigate("/ad-studio", { state: { image: ad.image_url, copy: { caption: ad.caption, hashtags: ad.hashtags } } })}>
+                    onClick={() => navigate("/ad-studio", { state: { image: ad.image_url, copy: { headline: ad.headline, caption: ad.caption, hashtags: ad.hashtags } } })}>
                     <img src={ad.image_url} alt="Ad"
                       className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-all flex items-end justify-center pb-3">
@@ -190,7 +191,7 @@ export default function History() {
                     {/* Actions */}
                     <div className="flex gap-2 mt-2">
                       <button
-                        onClick={() => navigate("/ad-studio", { state: { image: ad.image_url, copy: { caption: ad.caption, hashtags: ad.hashtags } } })}
+                        onClick={() => navigate("/ad-studio", { state: { image: ad.image_url, copy: { headline: ad.headline, caption: ad.caption, hashtags: ad.hashtags } } })}
                         className="flex-1 py-2 rounded-lg text-xs font-semibold bg-gradient-to-r from-violet-500/20 to-cyan-500/20 border border-violet-500/25 hover:from-violet-500/35 hover:to-cyan-500/35 flex items-center justify-center gap-1.5 transition">
                         <Wand2 size={12} /> Edit
                       </button>

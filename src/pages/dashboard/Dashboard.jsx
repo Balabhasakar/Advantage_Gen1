@@ -43,7 +43,8 @@ const PLATFORMS = [
 ];
 
 export default function Dashboard() {
-  const { user }   = useAuthStore();
+  const { user } = useAuthStore();
+  const getAuth = () => ({ "Content-Type": "application/json", Authorization: `Bearer ${useAuthStore.getState().token}` });
   const navigate   = useNavigate();
 
   /* generation state */
@@ -61,17 +62,39 @@ export default function Dashboard() {
   });
   const [copied,       setCopied]       = useState(false);
   const [recentAds,    setRecentAds]    = useState([]);
+  const [totalAds,     setTotalAds]     = useState(0);
+  const [credits,      setCredits]      = useState(100);
   const [ctaText,      setCtaText]      = useState("Shop Now");
   const [logoUrl,      setLogoUrl]      = useState("");
   const [logoFile,     setLogoFile]     = useState(null);
   const [logoPreview,  setLogoPreview]  = useState(null);
   const [uploadingLogo,setUploadingLogo]= useState(false);
 
+  /* Clear preview on fresh mount (after login) */
+  useEffect(() => {
+    const storedUser = sessionStorage.getItem("previewUser");
+    const currentUser = user?.email || user?.name || "guest";
+    if (storedUser !== currentUser) {
+      // Different user — clear old preview
+      sessionStorage.removeItem("lastImg");
+      sessionStorage.removeItem("lastCopy");
+      sessionStorage.setItem("previewUser", currentUser);
+    }
+  }, [user]);
+
   /* fetch recent ads */
   useEffect(() => {
-    fetch("http://localhost:5000/api/ads")
+    fetch("http://localhost:5000/api/ads", {
+        headers: { Authorization: `Bearer ${useAuthStore.getState().token}` }
+      })
       .then(r => r.json())
-      .then(d => setRecentAds(d.reverse().slice(0, 6)))
+      .then(d => {
+        if (Array.isArray(d)) {
+          setTotalAds(d.length);
+          setCredits(Math.max(0, 100 - d.length));
+          setRecentAds(d.slice(0, 6));
+        }
+      })
       .catch(() => {});
   }, []);
 
@@ -87,7 +110,7 @@ export default function Dashboard() {
     try {
       const res  = await fetch("http://localhost:5000/api/generate-all", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuth(),
         body: JSON.stringify({ prompt, voice, platform, ctaText, logoUrl }),
       });
       const data = await res.json();
@@ -178,9 +201,9 @@ export default function Dashboard() {
       {/* ── STATS ── */}
       <div className="relative z-10 grid md:grid-cols-3 gap-5 mb-10">
         {[
-          { icon: ImageIcon,  label: "Images Generated", value: recentAds.length || 0,  color: "text-violet-400" },
-          { icon: FileText,   label: "Ad Copies",        value: 28,                      color: "text-cyan-400"   },
-          { icon: CreditCard, label: "Credits Left",     value: 120,                     color: "text-emerald-400"},
+          { icon: ImageIcon,  label: "Images Generated", value: totalAds,  color: "text-violet-400" },
+          { icon: FileText,   label: "Ad Copies",        value: totalAds,  color: "text-cyan-400"   },
+          { icon: CreditCard, label: "Credits Left",     value: credits,   color: "text-emerald-400"},
         ].map(({ icon: Icon, label, value, color }) => (
           <Card key={label} className="p-5">
             <p className={`text-3xl font-bold ${color}`}>{value}</p>
