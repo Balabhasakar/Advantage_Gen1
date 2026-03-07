@@ -372,7 +372,7 @@ app.post("/api/generate-all", async (req, res) => {
 ───────────────────────────────────────── */
 app.post("/api/generate-variants", async (req, res) => {
   try {
-    const { prompt, platform = "instagram", ctaText = "", logoUrl = "" } = req.body;
+    const { prompt, platform = "instagram", ctaText = "", logoUrl = "", voice = "professional" } = req.body;
     if (!prompt) return res.status(400).json({ error: "Prompt is required" });
 
     console.log("⚡ Generating 3 A/B variants in parallel...");
