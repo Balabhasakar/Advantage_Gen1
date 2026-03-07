@@ -77,16 +77,40 @@ const PLATFORMS = {
 /* ─────────────────────────────────────────
    HELPERS
 ───────────────────────────────────────── */
+/* ─────────────────────────────────────────
+   POLLINATIONS.AI — Free image generation
+   No API key needed!
+───────────────────────────────────────── */
+async function generateImage(prompt) {
+  console.log("🎨 Generating image via FLUX...");
+  const response = await axios({
+    url:    "https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell",
+    method: "POST",
+    headers: {
+      Authorization:  `Bearer ${process.env.HF_TOKEN}`,
+      "Content-Type": "application/json",
+      Accept:         "image/png",
+    },
+    data:         { inputs: prompt.slice(0, 500) },
+    responseType: "arraybuffer",
+    timeout:      120000,
+  });
+  console.log(`✅ FLUX responded, size: ${response.data.byteLength} bytes`);
+  return Buffer.from(response.data, "binary");
+}
+
 async function enhancePrompt(userPrompt) {
   try {
-    return await askGroq(
+    const result = await askGroq(
       `You are an expert AI image prompt engineer.
        Rewrite this short prompt into a highly detailed, visually rich description 
        optimized for an AI image generator like FLUX.
        Focus on: lighting, mood, color palette, composition, style, atmosphere.
-       Keep it under 120 words. Return ONLY the enhanced prompt, nothing else.
+       Keep it under 120 words. Return ONLY the enhanced prompt, no quotes, no markdown.
        User prompt: "${userPrompt}"`
     );
+    // Strip any surrounding quotes the LLM may have added
+    return result.replace(/^["']|["']$/g, "").trim();
   } catch (err) {
     console.log("⚠️  Prompt enhancement failed, using original");
     return userPrompt;
@@ -206,24 +230,12 @@ app.post("/api/generate-image", async (req, res) => {
     console.log("✨ Enhanced:", enhancedPrompt);
 
     console.log("🎨 Generating image...");
-    const response = await axios({
-      url:     "https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell",
-      method:  "POST",
-      headers: {
-        Authorization:  `Bearer ${process.env.HF_TOKEN}`,
-        "Content-Type": "application/json",
-        Accept:         "image/png",
-      },
-      data:         { inputs: enhancedPrompt },
-      responseType: "arraybuffer",
-    });
-
-    const base64Image = Buffer.from(response.data, "binary").toString("base64");
+    const imgBuffer   = await generateImage(enhancedPrompt);
+    const base64Image = imgBuffer.toString("base64");
     const uploadRes   = await cloudinary.uploader.upload(
       `data:image/png;base64,${base64Image}`,
       { folder: "advantage_ads" }
     );
-
     console.log("✅ Image ready!");
     res.json({ imageUrl: uploadRes.secure_url, enhancedPrompt });
 
@@ -283,44 +295,24 @@ app.post("/api/generate-all", async (req, res) => {
     const [imageResult, copyResult] = await Promise.allSettled([
 
       // ── Image generation ──
-      axios({
-        url:     "https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell",
-        method:  "POST",
-        headers: {
-          Authorization:  `Bearer ${process.env.HF_TOKEN}`,
-          "Content-Type": "application/json",
-          Accept:         "image/png",
-        },
-        data:         { inputs: enhancedPrompt },
-        responseType: "arraybuffer",
-      }).then(async (r) => {
-        let imageBuffer = Buffer.from(r.data, "binary");
+      generateImage(enhancedPrompt).then(async (imageBuffer) => {
 
-        // ── Fetch logo if provided ──
         let logoBuffer = null;
         if (logoUrl) {
           try {
             const logoRes = await axios.get(logoUrl, { responseType: "arraybuffer" });
             logoBuffer    = Buffer.from(logoRes.data);
-          } catch (e) {
-            console.warn("⚠️  Logo fetch failed:", e.message);
-          }
+          } catch (e) { console.warn("⚠️  Logo fetch failed:", e.message); }
         }
 
-        // ── Sharp compositing: resize + logo + CTA ──
         const composited = await compositeImage({
-          imageBuffer,
-          platform,
-          logoBuffer,
-          ctaText: ctaText || null,
+          imageBuffer, platform, logoBuffer, ctaText: ctaText || null,
         });
 
-        // ── Upload composited image ──
         const upload = await cloudinary.uploader.upload(
           `data:image/png;base64,${composited.toString("base64")}`,
           { folder: "advantage_ads" }
         );
-
         return { imageUrl: upload.secure_url };
       }),
 
@@ -331,7 +323,11 @@ app.post("/api/generate-all", async (req, res) => {
           `${vp}
            Based on: "${prompt}"
            Return ONLY JSON, no markdown:
-           { "caption": "...", "hashtags": ["#tag1","#tag2","#tag3","#tag4","#tag5","#tag6","#tag7","#tag8"] }`
+           { "headline": "...", "caption": "...", "hashtags": ["#tag1","#tag2","#tag3","#tag4","#tag5","#tag6","#tag7","#tag8"] }
+           Rules:
+           - headline: a catchy 3-6 word PRODUCT/BRAND name or ad title that perfectly matches the product being advertised. Make it memorable, specific to the product, like "Brew Bold. Live Green." or "Speed Meets Style" or "Taste the Wild". NO generic phrases like "Your Headline Here"
+           - caption: 2-3 sentences, no hashtags
+           - hashtags: exactly 8`
         );
         return JSON.parse(raw.replace(/```json|```/g, "").trim());
       })(),
@@ -341,6 +337,12 @@ app.post("/api/generate-all", async (req, res) => {
     const caption  = copyResult.status  === "fulfilled" ? copyResult.value.caption   : null;
     const hashtags = copyResult.status  === "fulfilled" ? copyResult.value.hashtags  : [];
 
+    // Debug logs
+    console.log("🖼️  imageResult status:", imageResult.status);
+    if (imageResult.status === "rejected") console.error("❌ Image failed:", imageResult.reason?.message);
+    console.log("📝 copyResult status:", copyResult.status);
+    console.log("🔗 imageUrl:", imageUrl);
+
     if (imageUrl) {
       await pool.query(
         `INSERT INTO ads (prompt, image_url, caption, hashtags, voice, platform)
@@ -348,14 +350,142 @@ app.post("/api/generate-all", async (req, res) => {
         [prompt, imageUrl, caption, hashtags, voice, platform]
       );
       console.log("💾 Saved to PostgreSQL!");
+    } else {
+      console.error("❌ imageUrl is null — image generation failed silently");
     }
 
     console.log("✅ All done!");
-    res.json({ imageUrl, caption, hashtags, enhancedPrompt });
+    const headline = copyResult.status === "fulfilled" ? copyResult.value.headline : null;
+    res.json({ imageUrl, caption, hashtags, headline, enhancedPrompt });
 
   } catch (error) {
     console.error("❌ Generate-all error:", error.message);
     res.status(500).json({ error: "Generation failed", details: error.message });
+  }
+});
+
+
+/* ─────────────────────────────────────────
+   ROUTE 3B: POST /api/generate-variants
+   ⚡ Generates 3 A/B variants in parallel
+   Each variant: different image style + voice
+───────────────────────────────────────── */
+app.post("/api/generate-variants", async (req, res) => {
+  try {
+    const { prompt, platform = "instagram", ctaText = "", logoUrl = "" } = req.body;
+    if (!prompt) return res.status(400).json({ error: "Prompt is required" });
+
+    console.log("⚡ Generating 3 A/B variants in parallel...");
+
+    // All 4 voices with matching visual styles
+    const ALL_VOICES = {
+      professional:  "clean minimal aesthetic, bright lighting, premium product photography, polished corporate feel",
+      witty:         "bold vibrant colors, playful dynamic composition, fun eye-catching modern design",
+      urgent:        "dramatic dark moody lighting, cinematic high contrast, intense powerful atmosphere",
+      inspirational: "warm golden hour lighting, uplifting serene composition, soft dreamy emotional atmosphere",
+    };
+
+    // Always show the other 3 voices excluding the one user already selected
+    const selectedVoice = voice || "professional";
+    const remainingVoices = Object.keys(ALL_VOICES).filter(v => v !== selectedVoice);
+
+    const VARIANTS = remainingVoices.map((v, i) => ({
+      id:        ["A","B","C"][i],
+      voice:     v,
+      styleHint: ALL_VOICES[v],
+    }));
+
+    console.log(`🎯 User selected "${selectedVoice}" on Dashboard — generating variants for: ${remainingVoices.join(", ")}`);
+
+    // Enhance base prompt once
+    const enhancedBase = await enhancePrompt(prompt);
+
+    // Generate variants sequentially
+    const variantResults = [];
+    for (const variant of VARIANTS) {
+      console.log(`\n🎨 Starting Variant ${variant.id} (${variant.voice})...`);
+      try {
+        // Each variant gets its OWN enhanced prompt with different style
+        const styledPrompt = await askGroq(
+          `You are an expert AI image prompt engineer.
+           Rewrite this prompt for an AI image generator with a ${variant.styleHint} style.
+           Make it VERY different visually from other versions.
+           Keep under 100 words. Return ONLY the prompt, no quotes.
+           Original: "${prompt}"`
+        );
+        console.log(`✨ Variant ${variant.id} prompt: ${styledPrompt.slice(0, 80)}...`);
+
+        // ── Step 1: Generate image ──
+        console.log(`📡 Generating image for Variant ${variant.id}...`);
+        let imageBuffer = await generateImage(styledPrompt);
+        let imageUrl    = null;
+
+        // ── Step 2: Composite + Upload ──
+        let logoBuffer = null;
+        if (logoUrl) {
+          try {
+            const lr = await axios.get(logoUrl, { responseType: "arraybuffer" });
+            logoBuffer = Buffer.from(lr.data);
+          } catch (e) { console.warn("⚠️ Logo fetch failed"); }
+        }
+        const composited = await compositeImage({
+          imageBuffer, platform, logoBuffer, ctaText: ctaText || null,
+        });
+        const upload = await cloudinary.uploader.upload(
+          `data:image/png;base64,${composited.toString("base64")}`,
+          { folder: "advantage_variants" }
+        );
+        imageUrl = upload.secure_url;
+        console.log(`✅ Variant ${variant.id} image ready:`, imageUrl);
+
+        // ── Step 5: Generate copy ──
+        const vp  = VOICE_PROMPTS[variant.voice];
+        const raw = await askGroq(
+          `${vp}
+           Based on: "${prompt}"
+           Return ONLY JSON, no markdown:
+           { "headline": "...", "caption": "...", "hashtags": ["#tag1","#tag2","#tag3","#tag4","#tag5","#tag6","#tag7","#tag8"] }
+           Rules:
+           - headline: a catchy 3-6 word PRODUCT/BRAND name or ad title that perfectly matches the product. Make it memorable and specific like "Brew Bold. Live Green." or "Speed Meets Style". NO generic phrases
+           - caption: 2-3 sentences, no hashtags
+           - hashtags: exactly 8`
+        );
+        const copy = JSON.parse(raw.replace(/```json|```/g, "").trim());
+
+        // ── Step 6: NOT saving to DB here — only save when user picks a winner ──
+        variantResults.push({
+          id:       variant.id,
+          voice:    variant.voice,
+          imageUrl,
+          headline: copy.headline || null,
+          caption:  copy.caption  || null,
+          hashtags: copy.hashtags || [],
+        });
+
+      } catch(e) {
+        const errDetail = e.response?.data
+          ? Buffer.isBuffer(e.response.data)
+            ? Buffer.from(e.response.data).toString()
+            : JSON.stringify(e.response.data)
+          : e.message;
+        console.error(`❌ Variant ${variant.id} FAILED:`, errDetail);
+      }
+
+      // Delay between variants
+      if (variant.id !== "C") await new Promise(r => setTimeout(r, 1000));
+    }
+
+    const variants = variantResults; // already filtered — only successful ones pushed
+
+    console.log(`✅ Generated ${variants.length}/3 variants!`);
+    if (variants.length === 0) {
+      return res.status(500).json({ error: "All variants failed — check HF token and rate limits" });
+    }
+    res.json({ variants, enhancedBase });
+
+  } catch (error) {
+    console.error("❌ Variants error:", error.message);
+    res.status(500).json({ error: "Variant generation failed", details: error.message });
   }
 });
 
@@ -456,6 +586,28 @@ app.delete("/api/ads/:id", async (req, res) => {
   } catch (error) {
     console.error("❌ Delete error:", error.message);
     res.status(500).json({ error: "Failed to delete ad" });
+  }
+});
+
+/* ─────────────────────────────────────────
+   ROUTE: POST /api/save-ad
+   Save a selected variant to DB
+───────────────────────────────────────── */
+app.post("/api/save-ad", async (req, res) => {
+  try {
+    const { prompt, imageUrl, caption, hashtags, headline, voice, platform } = req.body;
+    if (!imageUrl) return res.status(400).json({ error: "imageUrl is required" });
+
+    await pool.query(
+      `INSERT INTO ads (prompt, image_url, caption, hashtags, voice, platform)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [prompt, imageUrl, caption, hashtags || [], voice, platform]
+    );
+    console.log("💾 Variant saved to PostgreSQL!");
+    res.json({ success: true });
+  } catch (error) {
+    console.error("❌ Save ad error:", error.message);
+    res.status(500).json({ error: "Failed to save ad" });
   }
 });
 

@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Sparkles, Image as ImageIcon, FileText, CreditCard,
   Wand2, Copy, CheckCheck, ChevronRight, Zap, RefreshCw,
-  Instagram, Linkedin, Smartphone, Square, Upload, X
+  Instagram, Linkedin, Smartphone, Square, Upload, X, Layers
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
@@ -52,8 +52,13 @@ export default function Dashboard() {
   const [platform,     setPlatform]     = useState("instagram");
   const [loadingImg,   setLoadingImg]   = useState(false);
   const [loadingCopy,  setLoadingCopy]  = useState(false);
-  const [generatedImg, setGeneratedImg] = useState(null);
-  const [adCopy,       setAdCopy]       = useState(null);   // { caption, hashtags }
+  const [headline,     setHeadline]     = useState("");
+  const [generatedImg, setGeneratedImg] = useState(() => {
+    try { return JSON.parse(sessionStorage.getItem("lastImg")) || null; } catch { return null; }
+  });
+  const [adCopy, setAdCopy] = useState(() => {
+    try { return JSON.parse(sessionStorage.getItem("lastCopy")) || null; } catch { return null; }
+  });
   const [copied,       setCopied]       = useState(false);
   const [recentAds,    setRecentAds]    = useState([]);
   const [ctaText,      setCtaText]      = useState("Shop Now");
@@ -89,12 +94,16 @@ export default function Dashboard() {
 
       if (data.imageUrl) {
         setGeneratedImg(data.imageUrl);
+        sessionStorage.setItem("lastImg", JSON.stringify(data.imageUrl));
       } else {
         toast.error("Image generation failed");
       }
 
       if (data.caption) {
-        setAdCopy({ caption: data.caption, hashtags: data.hashtags });
+        const copy = { headline: data.headline, caption: data.caption, hashtags: data.hashtags };
+        setAdCopy(copy);
+        setHeadline(data.headline || "");
+        sessionStorage.setItem("lastCopy", JSON.stringify(copy));
       }
     } catch {
       toast.error("Server not reachable");
@@ -140,7 +149,7 @@ export default function Dashboard() {
     navigate("/ad-studio", {
       state: {
         image: generatedImg,
-        copy:  adCopy,
+        copy:  { ...adCopy, headline },
         platform: { id: p.id, label: p.label, size: p.size, ratio: p.ratio, w: p.w, h: p.h },
       },
     });
@@ -339,14 +348,24 @@ export default function Dashboard() {
             </div>
 
             {generatedImg && (
-              <motion.button
-                initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-                whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                onClick={goToStudio}
-                className="w-full mt-3 py-2.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2
-                bg-white/8 border border-white/10 hover:bg-white/14 hover:border-violet-400/30 transition-all">
-                Edit in Studio <ChevronRight size={14} />
-              </motion.button>
+              <div className="flex gap-2 mt-3">
+                <motion.button
+                  initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                  whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                  onClick={goToStudio}
+                  className="flex-1 py-2.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2
+                  bg-white/8 border border-white/10 hover:bg-white/14 hover:border-violet-400/30 transition-all">
+                  Edit in Studio <ChevronRight size={14} />
+                </motion.button>
+                <motion.button
+                  initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                  whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                  onClick={() => navigate("/variants", { state: { prompt, voice, platform, ctaText, logoUrl } })}
+                  className="flex-1 py-2.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2
+                  bg-violet-500/15 border border-violet-500/30 hover:bg-violet-500/25 text-violet-300 transition-all">
+                  <Layers size={14} /> A/B Variants
+                </motion.button>
+              </div>
             )}
           </Card>
 
@@ -374,6 +393,9 @@ export default function Dashboard() {
                 </motion.div>
               ) : adCopy ? (
                 <motion.div key="copy" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
+                  {adCopy.headline && (
+                    <p className="text-base font-bold text-white mb-2">{adCopy.headline}</p>
+                  )}
                   <p className="text-sm text-gray-200 leading-relaxed mb-3">{adCopy.caption}</p>
                   <div className="flex flex-wrap gap-1.5">
                     {adCopy.hashtags.map(tag => (

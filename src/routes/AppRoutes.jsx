@@ -5,6 +5,7 @@ import Signup from "../pages/auth/Signup";
 import Dashboard from "../pages/dashboard/Dashboard";
 import AdStudio from "../pages/studio/AdStudio";
 import History from "../pages/history/History";
+import Variants from "../pages/variants/Variants";
 import Profile from "../pages/profile/Profile";
 import NotFound from "../pages/NotFound";
 
@@ -44,6 +45,7 @@ export default function AppRoutes() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/ad-studio" element={<AdStudio />} />
         <Route path="/history"   element={<History />} />
+        <Route path="/variants"  element={<Variants />} />
         <Route path="/profile"   element={<Profile />} />
       </Route>
 

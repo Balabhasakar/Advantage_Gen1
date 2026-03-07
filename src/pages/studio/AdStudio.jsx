@@ -28,7 +28,7 @@ export default function AdStudio() {
   const [imageUrl,  setImageUrl]  = useState(location.state?.image || null);
 
   // Text state
-  const [headline,      setHeadline]      = useState("Your Headline Here");
+  const [headline,      setHeadline]      = useState(location.state?.copy?.headline || "Your Headline Here");
   const [caption,       setCaption]       = useState(location.state?.copy?.caption || "Your caption goes here.");
   const [hashtags, setHashtags] = useState(() => {
     let tags = location.state?.copy?.hashtags;
@@ -37,7 +37,7 @@ export default function AdStudio() {
     if (typeof tags === "string") tags = tags.replace(/[{}]/g, "").split(",").filter(Boolean);
     return Array.isArray(tags) ? tags.slice(0, 4).join("  ") : "#YourBrand  #AdVantageGen";
   });
-  const [headlineSize,  setHeadlineSize]  = useState(32);
+  const [headlineSize,  setHeadlineSize]  = useState(24);
   const [captionSize,   setCaptionSize]   = useState(14);
   const [headlineColor, setHeadlineColor] = useState("#ffffff");
   const [captionColor,  setCaptionColor]  = useState("rgba(210,210,230,0.9)");
@@ -55,6 +55,38 @@ export default function AdStudio() {
   const [overlay, setOverlay] = useState("transparent");
 
   /* ── Regenerate image ── */
+  /* ── Logo upload ── */
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setLogoUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("logo", file);
+      const res  = await fetch("http://localhost:5000/api/upload-logo", { method: "POST", body: formData });
+      const data = await res.json();
+      if (data.logoUrl) { setLogoUrl(data.logoUrl); toast.success("Logo uploaded!"); }
+      else toast.error("Upload failed");
+    } catch { toast.error("Upload failed"); }
+    finally  { setLogoUploading(false); }
+  };
+
+  /* ── Apply composite (logo + CTA) to current image ── */
+  const handleApplyComposite = async () => {
+    if (!imageUrl) return toast.error("No image to composite!");
+    if (!logoUrl && !ctaText.trim()) return toast.error("Add a logo or CTA text first!");
+    try {
+      toast.loading("Applying...");
+      const res  = await fetch("http://localhost:5000/api/composite", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrl, platform: "instagram", ctaText, logoUrl }),
+      });
+      const data = await res.json();
+      toast.dismiss();
+      if (data.imageUrl) { setImageUrl(data.imageUrl); toast.success("Applied!"); }
+    } catch { toast.dismiss(); toast.error("Server not reachable"); }
+  };
+
   const handleRegenerate = async () => {
     if (!prompt.trim()) return toast.error("Enter a prompt first!");
     setLoading(true);
@@ -214,6 +246,38 @@ export default function AdStudio() {
 
               <div className="h-px bg-white/10 my-3" />
 
+              {/* ── Brand Logo Upload ── */}
+              <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2">Brand Logo</p>
+              <label className="w-full flex flex-col items-center gap-2 p-3 rounded-lg border border-dashed border-white/20 hover:border-violet-500/50 cursor-pointer transition bg-white/3 hover:bg-white/6 mb-3">
+                <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
+                {logoUploading ? (
+                  <span className="text-xs text-violet-300 flex items-center gap-1.5">
+                    <RefreshCw size={12} className="animate-spin" /> Uploading...
+                  </span>
+                ) : logoUrl ? (
+                  <div className="flex items-center gap-2 w-full">
+                    <img src={logoUrl} alt="Logo" className="h-7 w-7 object-contain rounded" />
+                    <span className="text-xs text-emerald-400 flex-1 truncate">✓ Logo ready</span>
+                    <button onClick={(e) => { e.preventDefault(); setLogoUrl(""); }} className="text-red-400 text-[10px] hover:underline">Remove</button>
+                  </div>
+                ) : (
+                  <span className="text-xs text-gray-500 text-center">🖼️ Upload brand logo<br/>(placed bottom-right)</span>
+                )}
+              </label>
+
+              {/* ── CTA Badge ── */}
+              <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2">CTA Badge</p>
+              <input type="text" value={ctaText} onChange={e => setCtaText(e.target.value)}
+                placeholder="e.g. Shop Now, Learn More"
+                className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm outline-none focus:border-violet-500 placeholder-gray-600 mb-2 transition" />
+              <button onClick={handleApplyComposite}
+                disabled={!imageUrl || (!logoUrl && !ctaText.trim())}
+                className="w-full py-2 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 bg-cyan-500/20 border border-cyan-500/30 hover:bg-cyan-500/35 disabled:opacity-40 disabled:cursor-not-allowed transition mb-3">
+                ✨ Apply to Image
+              </button>
+
+              <div className="h-px bg-white/10 my-3" />
+
               <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2">Regenerate Image</p>
               <textarea value={prompt} onChange={e => setPrompt(e.target.value)}
                 placeholder="Describe new image..."
@@ -282,7 +346,7 @@ export default function AdStudio() {
                 {/* Headline */}
                 <p
                   className={`font-bold leading-tight mb-3 ${alignClass}`}
-                  style={{ fontSize: headlineSize, color: headlineColor }}
+                  style={{ fontSize: `${headlineSize}px`, color: headlineColor }}
                 >
                   {headline}
                 </p>
@@ -290,7 +354,7 @@ export default function AdStudio() {
                 {/* Caption */}
                 <p
                   className={`leading-relaxed mb-4 ${alignClass}`}
-                  style={{ fontSize: captionSize, color: captionColor }}
+                  style={{ fontSize: `${captionSize}px`, color: captionColor }}
                 >
                   {caption}
                 </p>
