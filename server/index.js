@@ -637,32 +637,41 @@ app.post("/api/save-ad", authMiddleware, async (req, res) => {
 ───────────────────────────────────────── */
 
 // Create users table on startup
-pool.query(`
-  CREATE TABLE IF NOT EXISTS users (
-    id         SERIAL PRIMARY KEY,
-    name       TEXT NOT NULL,
-    email      TEXT UNIQUE NOT NULL,
-    password   TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT NOW()
-  )
-`).then(() => console.log("✅ Users table ready"))
-  .catch(e => console.error("❌ Users table error:", e.message));
+// Create all tables on startup
+async function initDB() {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id         SERIAL PRIMARY KEY,
+        name       TEXT NOT NULL,
+        email      TEXT UNIQUE NOT NULL,
+        password   TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    console.log("✅ Users table ready");
 
-pool.query(`
-  CREATE TABLE IF NOT EXISTS ads (
-    id         SERIAL PRIMARY KEY,
-    prompt     TEXT,
-    image_url  TEXT,
-    caption    TEXT,
-    hashtags   TEXT[],
-    headline   TEXT,
-    voice      TEXT,
-    platform   TEXT,
-    user_id    INTEGER REFERENCES users(id),
-    created_at TIMESTAMP DEFAULT NOW()
-  )
-`).then(() => console.log("✅ Ads table ready"))
-  .catch(e => console.error("❌ Ads table error:", e.message));
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS ads (
+        id         SERIAL PRIMARY KEY,
+        prompt     TEXT,
+        image_url  TEXT,
+        caption    TEXT,
+        hashtags   TEXT[],
+        headline   TEXT,
+        voice      TEXT,
+        platform   TEXT,
+        user_id    INTEGER REFERENCES users(id),
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    console.log("✅ Ads table ready");
+
+  } catch(e) {
+    console.error("❌ DB init error:", e.message);
+  }
+}
+initDB();
 
 // SIGNUP
 app.post("/api/auth/signup", async (req, res) => {
