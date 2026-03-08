@@ -57,13 +57,11 @@ async function askGroq(prompt) {
 /* ─────────────────────────────────────────
    POSTGRESQL
 ───────────────────────────────────────── */
-const pool = new Pool({
-  host:     process.env.PG_HOST     || "localhost",
-  port:     process.env.PG_PORT     || 5432,
-  database: process.env.PG_DATABASE || "advantage_gen",
-  user:     process.env.PG_USER     || "postgres",
-  password: process.env.PG_PASSWORD,
-});
+const pool = new Pool(
+  process.env.DATABASE_URL
+    ? { connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } }
+    : { host: "localhost", port: 5432, database: "advantage_gen", user: "postgres", password: process.env.PG_PASSWORD }
+);
 
 pool.connect()
   .then(() => console.log("🐘 PostgreSQL connected!"))
