@@ -54,7 +54,7 @@ export default function Profile() {
     year: "numeric", month: "long", day: "numeric"
   });
 
-  const creditPercent = stats ? (stats.stats.credits / stats.stats.maxCredits) * 100 : 0;
+  const creditPercent = stats?.stats ? (stats.stats.credits / stats.stats.maxCredits) * 100 : 0;
   const creditColor   = creditPercent > 50 ? "bg-emerald-500" : creditPercent > 20 ? "bg-yellow-500" : "bg-red-500";
 
   return (

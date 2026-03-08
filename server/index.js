@@ -648,6 +648,22 @@ pool.query(`
 `).then(() => console.log("✅ Users table ready"))
   .catch(e => console.error("❌ Users table error:", e.message));
 
+pool.query(`
+  CREATE TABLE IF NOT EXISTS ads (
+    id         SERIAL PRIMARY KEY,
+    prompt     TEXT,
+    image_url  TEXT,
+    caption    TEXT,
+    hashtags   TEXT[],
+    headline   TEXT,
+    voice      TEXT,
+    platform   TEXT,
+    user_id    INTEGER REFERENCES users(id),
+    created_at TIMESTAMP DEFAULT NOW()
+  )
+`).then(() => console.log("✅ Ads table ready"))
+  .catch(e => console.error("❌ Ads table error:", e.message));
+
 // SIGNUP
 app.post("/api/auth/signup", async (req, res) => {
   try {
