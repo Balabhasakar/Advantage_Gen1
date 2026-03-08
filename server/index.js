@@ -812,7 +812,7 @@ app.get("/api/health", (req, res) => {
       cloudinary:  !!process.env.CLOUDINARY_NAME,
       huggingface: !!process.env.HF_TOKEN,
       groq:        !!process.env.GROQ_API_KEY,
-      postgres:    !!process.env.PG_PASSWORD,
+      postgres:    !!(process.env.DATABASE_URL || process.env.PG_PASSWORD),
     },
     platforms: Object.keys(PLATFORMS),
   });
