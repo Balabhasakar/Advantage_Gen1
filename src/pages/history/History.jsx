@@ -13,7 +13,7 @@ export default function History() {
 
   /* ── fetch ads ── */
   useEffect(() => {
-    fetch("http://localhost:5000/api/ads", { headers: { Authorization: `Bearer ${useAuthStore.getState().token}` } })
+    fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/ads`, { headers: { Authorization: `Bearer ${useAuthStore.getState().token}` } })
       .then(r => r.json())
       .then(data => { setAds(data); setLoading(false); })
       .catch(() => { toast.error("Could not load history"); setLoading(false); });
@@ -22,7 +22,7 @@ export default function History() {
   /* ── delete ad ── */
   const handleDelete = async (id) => {
     try {
-      await fetch(`http://localhost:5000/api/ads/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${useAuthStore.getState().token}` } });
+      await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/ads/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${useAuthStore.getState().token}` } });
       setAds(prev => prev.filter(a => a.id !== id));
       toast.success("Deleted!");
     } catch {

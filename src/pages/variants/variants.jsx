@@ -64,7 +64,7 @@ export default function Variants() {
     try {
       const fd = new FormData();
       fd.append("logo", file);
-      const res  = await fetch("http://localhost:5000/api/upload-logo", { method: "POST", body: fd });
+      const res  = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/upload-logo`, { method: "POST", body: fd });
       const data = await res.json();
       if (data.logoUrl) { setLogoUrl(data.logoUrl); toast.success("Logo uploaded!"); }
     } catch { toast.error("Logo upload failed"); }
@@ -79,7 +79,7 @@ export default function Variants() {
     setSelected(null);
     try {
       const token = useAuthStore.getState().token;
-      const res  = await fetch("http://localhost:5000/api/generate-variants", {
+      const res  = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/generate-variants`, {
         method:  "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body:    JSON.stringify({ prompt, platform, ctaText, logoUrl, voice }),
@@ -113,7 +113,7 @@ export default function Variants() {
     try {
       // Save ONLY this selected variant to DB
       const saveToken = useAuthStore.getState().token;
-      await fetch("http://localhost:5000/api/save-ad", {
+      await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/save-ad`, {
         method:  "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${saveToken}` },
         body: JSON.stringify({

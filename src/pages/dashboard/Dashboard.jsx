@@ -84,7 +84,7 @@ export default function Dashboard() {
 
   /* fetch recent ads */
   useEffect(() => {
-    fetch("http://localhost:5000/api/ads", {
+    fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/ads`, {
         headers: { Authorization: `Bearer ${useAuthStore.getState().token}` }
       })
       .then(r => r.json())
@@ -108,7 +108,7 @@ export default function Dashboard() {
     setAdCopy(null);
 
     try {
-      const res  = await fetch("http://localhost:5000/api/generate-all", {
+      const res  = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/generate-all`, {
         method: "POST",
         headers: getAuth(),
         body: JSON.stringify({ prompt, voice, platform, ctaText, logoUrl }),
@@ -155,7 +155,7 @@ export default function Dashboard() {
     try {
       const formData = new FormData();
       formData.append("logo", file);
-      const res  = await fetch("http://localhost:5000/api/upload-logo", { method: "POST", body: formData });
+      const res  = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/upload-logo`, { method: "POST", body: formData });
       const data = await res.json();
       if (data.logoUrl) { setLogoUrl(data.logoUrl); toast.success("Logo uploaded!"); }
       else toast.error("Logo upload failed");

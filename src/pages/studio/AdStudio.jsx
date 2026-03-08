@@ -52,7 +52,10 @@ export default function AdStudio() {
     { label: "Cyan",   value: "rgba(6,182,212,0.30)" },
     { label: "Gold",   value: "rgba(245,158,11,0.35)" },
   ];
-  const [overlay, setOverlay] = useState("transparent");
+  const [overlay,       setOverlay]       = useState("transparent");
+  const [logoUrl,       setLogoUrl]       = useState(location.state?.logoUrl || "");
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [ctaText,       setCtaText]       = useState(location.state?.ctaText || "Shop Now");
 
   /* ── Regenerate image ── */
   /* ── Logo upload ── */
@@ -63,7 +66,7 @@ export default function AdStudio() {
     try {
       const formData = new FormData();
       formData.append("logo", file);
-      const res  = await fetch("http://localhost:5000/api/upload-logo", { method: "POST", body: formData });
+      const res  = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/upload-logo`, { method: "POST", body: formData });
       const data = await res.json();
       if (data.logoUrl) { setLogoUrl(data.logoUrl); toast.success("Logo uploaded!"); }
       else toast.error("Upload failed");
@@ -77,7 +80,7 @@ export default function AdStudio() {
     if (!logoUrl && !ctaText.trim()) return toast.error("Add a logo or CTA text first!");
     try {
       toast.loading("Applying...");
-      const res  = await fetch("http://localhost:5000/api/composite", {
+      const res  = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/composite`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ imageUrl, platform: "instagram", ctaText, logoUrl }),
       });
@@ -91,7 +94,7 @@ export default function AdStudio() {
     if (!prompt.trim()) return toast.error("Enter a prompt first!");
     setLoading(true);
     try {
-      const res  = await fetch("http://localhost:5000/api/generate-image", {
+      const res  = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/generate-image`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt }),
       });

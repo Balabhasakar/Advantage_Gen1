@@ -32,7 +32,7 @@ export default function Profile() {
 
   useEffect(() => {
     setLoading(true);
-    fetch("http://localhost:5000/api/profile/stats", {
+    fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/profile/stats`, {
       headers: { Authorization: `Bearer ${useAuthStore.getState().token}` },
     })
       .then(r => r.json())
@@ -182,9 +182,8 @@ export default function Profile() {
                             <span className="text-xs text-gray-500">{count} ads · {pct}%</span>
                           </div>
                           <div className="h-1.5 bg-white/8 rounded-full overflow-hidden">
-                            <div className={`h-full rounded-full ${cfg.bg.replace("bg-","bg-").replace("/10","")}`}
-                              style={{ width: `${pct}%`, background: "currentColor" }}
-                              className={cfg.color} />
+                            <div className={`h-full rounded-full ${cfg.color.replace("text-","bg-")}`}
+                              style={{ width: `${pct}%` }} />
                           </div>
                         </div>
                       );
