@@ -452,7 +452,7 @@ export default function Dashboard() {
             {recentAds.map((ad, i) => (
               <motion.div key={i} whileHover={{ scale: 1.05 }}
                 className="aspect-square rounded-xl bg-white/5 border border-white/8 overflow-hidden cursor-pointer"
-                onClick={() => navigate("/ad-studio", { state: { image: ad.image_url, copy: { caption: ad.caption, hashtags: ad.hashtags } } })}>
+                onClick={() => navigate("/ad-studio", { state: { image: ad.image_url, copy: { headline: ad.headline, caption: ad.caption, hashtags: ad.hashtags } } })}>
                 <img src={ad.image_url} alt="Recent" className="w-full h-full object-cover opacity-70 hover:opacity-100 transition" />
               </motion.div>
             ))}
