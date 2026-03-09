@@ -239,7 +239,7 @@ async function compositeImage({ imageBuffer, platform = "instagram", logoBuffer 
 /* ─────────────────────────────────────────
    ROUTE 1: POST /api/generate-image
 ───────────────────────────────────────── */
-app.post("/api/generate-image", async (req, res) => {
+app.post("/api/generate-image", authMiddleware, async (req, res) => {
   try {
     const { prompt } = req.body;
     if (!prompt) return res.status(400).json({ error: "Prompt is required" });
@@ -270,7 +270,7 @@ app.post("/api/generate-image", async (req, res) => {
 /* ─────────────────────────────────────────
    ROUTE 2: POST /api/generate-copy
 ───────────────────────────────────────── */
-app.post("/api/generate-copy", async (req, res) => {
+app.post("/api/generate-copy", authMiddleware, async (req, res) => {
   try {
     const { prompt, voice = "professional" } = req.body;
     if (!prompt) return res.status(400).json({ error: "Prompt is required" });
@@ -513,7 +513,7 @@ app.post("/api/generate-variants", authMiddleware, async (req, res) => {
    Apply logo + CTA to an existing image URL
    (used from AdStudio for existing ads)
 ───────────────────────────────────────── */
-app.post("/api/composite", async (req, res) => {
+app.post("/api/composite", authMiddleware, async (req, res) => {
   try {
     const { imageUrl, platform = "instagram", ctaText = "", logoUrl = "" } = req.body;
     if (!imageUrl) return res.status(400).json({ error: "imageUrl is required" });
@@ -553,7 +553,7 @@ app.post("/api/composite", async (req, res) => {
    ROUTE 5: POST /api/upload-logo
    Upload logo to Cloudinary, return URL
 ───────────────────────────────────────── */
-app.post("/api/upload-logo", upload.single("logo"), async (req, res) => {
+app.post("/api/upload-logo", authMiddleware, upload.single("logo"), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
 
