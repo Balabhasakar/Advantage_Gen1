@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Mail, Lock, Eye, EyeOff, Sparkles, User, AlertCircle, CheckCircle } from "lucide-react";
 import useAuthStore from "../../context/useAuthStore";
+import api from "../../lib/api";
 import toast from "react-hot-toast";
 
 export default function Signup() {
@@ -33,19 +34,14 @@ export default function Signup() {
     setError("");
     setLoading(true);
     try {
-      const res  = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/auth/signup`, {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ name, email, password }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setError(data.error || "Signup failed"); return; }
+      const res  = await api.post("/api/auth/signup", { name, email, password });
+      const data = res.data;
 
       login(data.user, data.token);
       toast.success(`Welcome to AdVantage Gen, ${data.user.name}!`);
       navigate("/dashboard");
-    } catch {
-      setError("Server not reachable");
+    } catch (err) {
+      setError(err.response?.data?.error || "Server not reachable");
     } finally {
       setLoading(false);
     }

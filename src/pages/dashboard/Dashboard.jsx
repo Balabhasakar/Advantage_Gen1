@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import useAuthStore from "../../context/useAuthStore";
+import api from "../../lib/api";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Sparkles, Image as ImageIcon, FileText, CreditCard,
@@ -44,7 +45,6 @@ const PLATFORMS = [
 
 export default function Dashboard() {
   const { user } = useAuthStore();
-  const getAuth = () => ({ "Content-Type": "application/json", Authorization: `Bearer ${useAuthStore.getState().token}` });
   const navigate   = useNavigate();
 
   /* generation state */
@@ -84,15 +84,12 @@ export default function Dashboard() {
 
   /* fetch recent ads */
   useEffect(() => {
-    fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/ads`, {
-        headers: { Authorization: `Bearer ${useAuthStore.getState().token}` }
-      })
-      .then(r => r.json())
-      .then(d => {
-        if (Array.isArray(d)) {
-          setTotalAds(d.length);
-          setCredits(Math.max(0, 100 - d.length));
-          setRecentAds(d.slice(0, 6));
+    api.get("/api/ads")
+      .then(r => {
+        if (Array.isArray(r.data)) {
+          setTotalAds(r.data.length);
+          setCredits(Math.max(0, 100 - r.data.length));
+          setRecentAds(r.data.slice(0, 6));
         }
       })
       .catch(() => {});
@@ -108,12 +105,8 @@ export default function Dashboard() {
     setAdCopy(null);
 
     try {
-      const res  = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/generate-all`, {
-        method: "POST",
-        headers: getAuth(),
-        body: JSON.stringify({ prompt, voice, platform, ctaText, logoUrl }),
-      });
-      const data = await res.json();
+      const res  = await api.post("/api/generate-all", { prompt, voice, platform, ctaText, logoUrl });
+      const data = res.data;
 
       if (data.imageUrl) {
         setGeneratedImg(data.imageUrl);
@@ -155,8 +148,8 @@ export default function Dashboard() {
     try {
       const formData = new FormData();
       formData.append("logo", file);
-      const res  = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/upload-logo`, { method: "POST", body: formData });
-      const data = await res.json();
+      const res  = await api.post("/api/upload-logo", formData, { headers: { "Content-Type": "multipart/form-data" } });
+      const data = res.data;
       if (data.logoUrl) { setLogoUrl(data.logoUrl); toast.success("Logo uploaded!"); }
       else toast.error("Logo upload failed");
     } catch { toast.error("Server not reachable"); }

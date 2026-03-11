@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Mail, Lock, Eye, EyeOff, Sparkles, AlertCircle } from "lucide-react";
 import useAuthStore from "../../context/useAuthStore";
+import api from "../../lib/api";
 import toast from "react-hot-toast";
 
 export default function Login() {
@@ -20,20 +21,15 @@ export default function Login() {
     setError("");
     setLoading(true);
     try {
-      const res  = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/auth/login`, {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ email, password }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setError(data.error || "Login failed"); return; }
+      const res  = await api.post("/api/auth/login", { email, password });
+      const data = res.data;
 
       // Save token + user to store
       login(data.user, data.token);
       toast.success(`Welcome back, ${data.user.name}!`);
       navigate("/dashboard");
-    } catch {
-      setError("Server not reachable");
+    } catch (err) {
+      setError(err.response?.data?.error || "Server not reachable");
     } finally {
       setLoading(false);
     }

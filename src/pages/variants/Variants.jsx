@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import useAuthStore from "../../context/useAuthStore";
+import api from "../../lib/api";
 
 const PLATFORMS = [
   { id: "instagram", label: "Instagram", icon: Instagram, ratio: "1:1"    },
@@ -64,8 +65,8 @@ export default function Variants() {
     try {
       const fd = new FormData();
       fd.append("logo", file);
-      const res  = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/upload-logo`, { method: "POST", body: fd });
-      const data = await res.json();
+      const res  = await api.post("/api/upload-logo", fd, { headers: { "Content-Type": "multipart/form-data" } });
+      const data = res.data;
       if (data.logoUrl) { setLogoUrl(data.logoUrl); toast.success("Logo uploaded!"); }
     } catch { toast.error("Logo upload failed"); }
     finally  { setUploadingLogo(false); }
@@ -78,13 +79,8 @@ export default function Variants() {
     setVariants([]);
     setSelected(null);
     try {
-      const token = useAuthStore.getState().token;
-      const res  = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/generate-variants`, {
-        method:  "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body:    JSON.stringify({ prompt, platform, ctaText, logoUrl, voice }),
-      });
-      const data = await res.json();
+      const res  = await api.post("/api/generate-variants", { prompt, platform, ctaText, logoUrl, voice });
+      const data = res.data;
       console.log("Variants response:", JSON.stringify(data, null, 2));
       if (data.variants?.length) {
         setVariants(data.variants);
@@ -112,19 +108,14 @@ export default function Variants() {
   const openInStudio = async (variant) => {
     try {
       // Save ONLY this selected variant to DB
-      const saveToken = useAuthStore.getState().token;
-      await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/save-ad`, {
-        method:  "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${saveToken}` },
-        body: JSON.stringify({
-          prompt,
-          imageUrl:  variant.imageUrl,
-          caption:   variant.caption,
-          hashtags:  variant.hashtags,
-          headline:  variant.headline,
-          voice:     variant.voice,
-          platform,
-        }),
+      await api.post("/api/save-ad", {
+        prompt,
+        imageUrl:  variant.imageUrl,
+        caption:   variant.caption,
+        hashtags:  variant.hashtags,
+        headline:  variant.headline,
+        voice:     variant.voice,
+        platform,
       });
       toast.success("Saved to history!");
     } catch {

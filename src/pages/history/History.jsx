@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Trash2, Wand2, Copy, CheckCheck, Clock, Image as ImageIcon } from "lucide-react";
 import toast from "react-hot-toast";
-import useAuthStore from "../../context/useAuthStore";
+import api from "../../lib/api";
 
 export default function History() {
   const navigate = useNavigate();
@@ -13,16 +13,15 @@ export default function History() {
 
   /* ── fetch ads ── */
   useEffect(() => {
-    fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/ads`, { headers: { Authorization: `Bearer ${useAuthStore.getState().token}` } })
-      .then(r => r.json())
-      .then(data => { setAds(data); setLoading(false); })
+    api.get("/api/ads")
+      .then(r => { setAds(r.data); setLoading(false); })
       .catch(() => { toast.error("Could not load history"); setLoading(false); });
   }, []);
 
   /* ── delete ad ── */
   const handleDelete = async (id) => {
     try {
-      await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/ads/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${useAuthStore.getState().token}` } });
+      await api.delete(`/api/ads/${id}`);
       setAds(prev => prev.filter(a => a.id !== id));
       toast.success("Deleted!");
     } catch {

@@ -7,6 +7,7 @@ import {
   AlignLeft, AlignRight, Plus
 } from "lucide-react";
 import toast from "react-hot-toast";
+import api from "../../lib/api";
 
 const COLORS = ["#ffffff","#000000","#a78bfa","#06b6d4","#f59e0b","#10b981","#ef4444","#f472b6"];
 
@@ -66,8 +67,8 @@ export default function AdStudio() {
     try {
       const formData = new FormData();
       formData.append("logo", file);
-      const res  = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/upload-logo`, { method: "POST", body: formData });
-      const data = await res.json();
+      const res  = await api.post("/api/upload-logo", formData, { headers: { "Content-Type": "multipart/form-data" } });
+      const data = res.data;
       if (data.logoUrl) { setLogoUrl(data.logoUrl); toast.success("Logo uploaded!"); }
       else toast.error("Upload failed");
     } catch { toast.error("Upload failed"); }
@@ -80,11 +81,8 @@ export default function AdStudio() {
     if (!logoUrl && !ctaText.trim()) return toast.error("Add a logo or CTA text first!");
     try {
       toast.loading("Applying...");
-      const res  = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/composite`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageUrl, platform: "instagram", ctaText, logoUrl }),
-      });
-      const data = await res.json();
+      const res  = await api.post("/api/composite", { imageUrl, platform: "instagram", ctaText, logoUrl });
+      const data = res.data;
       toast.dismiss();
       if (data.imageUrl) { setImageUrl(data.imageUrl); toast.success("Applied!"); }
     } catch { toast.dismiss(); toast.error("Server not reachable"); }
@@ -94,11 +92,8 @@ export default function AdStudio() {
     if (!prompt.trim()) return toast.error("Enter a prompt first!");
     setLoading(true);
     try {
-      const res  = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/generate-image`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt }),
-      });
-      const data = await res.json();
+      const res  = await api.post("/api/generate-image", { prompt });
+      const data = res.data;
       if (data.imageUrl) { setImageUrl(data.imageUrl); toast.success("Image updated!"); }
     } catch { toast.error("Server not reachable"); }
     finally  { setLoading(false); }

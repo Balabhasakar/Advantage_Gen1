@@ -7,6 +7,7 @@ import {
   Smile, Briefcase, AlertTriangle, Star, ChevronRight
 } from "lucide-react";
 import useAuthStore from "../../context/useAuthStore";
+import api from "../../lib/api";
 import toast from "react-hot-toast";
 
 const VOICE_ICONS = {
@@ -32,13 +33,10 @@ export default function Profile() {
 
   useEffect(() => {
     setLoading(true);
-    fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/profile/stats`, {
-      headers: { Authorization: `Bearer ${useAuthStore.getState().token}` },
-    })
-      .then(r => r.json())
-      .then(data => {
-        console.log("📊 Profile stats:", JSON.stringify(data, null, 2));
-        setStats(data);
+    api.get("/api/profile/stats")
+      .then(r => {
+        console.log("📊 Profile stats:", JSON.stringify(r.data, null, 2));
+        setStats(r.data);
         setLoading(false);
       })
       .catch(e => { console.error("Profile fetch error:", e); setLoading(false); });
