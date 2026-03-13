@@ -92,7 +92,9 @@ export default function Dashboard() {
           setRecentAds(r.data.slice(0, 6));
         }
       })
-      .catch(() => {});
+      .catch(() => {
+  toast.error("Failed to load ads");
+});
   }, []);
 
   /* ── MAIN GENERATE (parallel image + copy + composite) ── */
