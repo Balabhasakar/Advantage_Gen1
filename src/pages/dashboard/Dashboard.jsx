@@ -48,7 +48,9 @@ export default function Dashboard() {
   const navigate   = useNavigate();
 
   /* generation state */
-  const [prompt,       setPrompt]       = useState("");
+  const [prompt,       setPrompt]       = useState(() => {
+    try { return sessionStorage.getItem("lastPrompt") || ""; } catch { return ""; }
+  });
   const [voice,        setVoice]        = useState("professional");
   const [platform,     setPlatform]     = useState("instagram");
   const [loadingImg,   setLoadingImg]   = useState(false);
@@ -78,6 +80,7 @@ export default function Dashboard() {
       // Different user — clear old preview
       sessionStorage.removeItem("lastImg");
       sessionStorage.removeItem("lastCopy");
+      sessionStorage.removeItem("lastPrompt");
       sessionStorage.setItem("previewUser", currentUser);
     }
   }, [user]);
@@ -92,9 +95,7 @@ export default function Dashboard() {
           setRecentAds(r.data.slice(0, 6));
         }
       })
-      .catch(() => {
-  toast.error("Failed to load ads");
-});
+      .catch(() => {});
   }, []);
 
   /* ── MAIN GENERATE (parallel image + copy + composite) ── */
@@ -113,6 +114,7 @@ export default function Dashboard() {
       if (data.imageUrl) {
         setGeneratedImg(data.imageUrl);
         sessionStorage.setItem("lastImg", JSON.stringify(data.imageUrl));
+        sessionStorage.setItem("lastPrompt", prompt);
       } else {
         toast.error("Image generation failed");
       }
@@ -177,7 +179,7 @@ export default function Dashboard() {
   const isGenerating     = loadingImg || loadingCopy;
 
   return (
-    <div className="relative min-h-screen bg-[#05060a] text-white px-6 py-8 overflow-hidden">
+    <div className="relative min-h-screen bg-[#05060a] text-white px-3 sm:px-6 py-6 sm:py-8 overflow-hidden">
       <Blob className="w-[420px] h-[420px] bg-violet-600 -top-20 -left-20" />
       <Blob className="w-[360px] h-[360px] bg-cyan-500 bottom-10 right-10" />
 
@@ -185,7 +187,7 @@ export default function Dashboard() {
       <div className="relative z-10 mb-10">
         <motion.h1
           initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-          className="text-4xl font-semibold tracking-tight bg-gradient-to-r from-violet-400 to-cyan-400 bg-clip-text text-transparent">
+          className="text-2xl sm:text-4xl font-semibold tracking-tight bg-gradient-to-r from-violet-400 to-cyan-400 bg-clip-text text-transparent">
           AdVantage Gen
         </motion.h1>
         <p className="text-gray-400 mt-2 text-sm">
@@ -194,14 +196,14 @@ export default function Dashboard() {
       </div>
 
       {/* ── STATS ── */}
-      <div className="relative z-10 grid md:grid-cols-3 gap-5 mb-10">
+      <div className="relative z-10 grid grid-cols-3 gap-2 sm:gap-5 mb-6 sm:mb-10">
         {[
           { icon: ImageIcon,  label: "Images Generated", value: totalAds,  color: "text-violet-400" },
           { icon: FileText,   label: "Ad Copies",        value: totalAds,  color: "text-cyan-400"   },
           { icon: CreditCard, label: "Credits Left",     value: credits,   color: "text-emerald-400"},
         ].map(({ icon: Icon, label, value, color }) => (
           <Card key={label} className="p-5">
-            <p className={`text-3xl font-bold ${color}`}>{value}</p>
+            <p className={`text-xl sm:text-3xl font-bold ${color}`}>{value}</p>
             <p className="text-xs text-gray-400 flex items-center gap-1.5 mt-1">
               <Icon size={13} /> {label}
             </p>
@@ -210,10 +212,10 @@ export default function Dashboard() {
       </div>
 
       {/* ── MAIN GENERATOR ── */}
-      <div className="relative z-10 grid lg:grid-cols-2 gap-6 mb-10">
+      <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-10">
 
         {/* LEFT — inputs */}
-        <Card className="p-6 space-y-5">
+        <Card className="p-4 sm:p-6 space-y-4 sm:space-y-5">
           <h2 className="font-semibold flex items-center gap-2 text-base">
             <Wand2 size={16} className="text-violet-400" /> Create Campaign
           </h2>
@@ -334,7 +336,7 @@ export default function Dashboard() {
         <div className="space-y-4">
 
           {/* Image Preview */}
-          <Card className="p-5">
+          <Card className="p-3 sm:p-5">
             <div className="flex items-center justify-between mb-3">
               <label className="text-xs text-gray-500 uppercase tracking-wider">Preview</label>
               {selectedPlatform && (
@@ -388,7 +390,7 @@ export default function Dashboard() {
           </Card>
 
           {/* AI Copy Output */}
-          <Card className="p-5">
+          <Card className="p-3 sm:p-5">
             <div className="flex items-center justify-between mb-3">
               <label className="text-xs text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
                 <FileText size={11} /> AI Copy
@@ -443,7 +445,7 @@ export default function Dashboard() {
       {recentAds.length > 0 && (
         <div className="relative z-10">
           <h3 className="font-semibold mb-4 text-sm text-gray-300">Recent Campaigns</h3>
-          <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 sm:gap-3">
             {recentAds.map((ad, i) => (
               <motion.div key={i} whileHover={{ scale: 1.05 }}
                 className="aspect-square rounded-xl bg-white/5 border border-white/8 overflow-hidden cursor-pointer"
