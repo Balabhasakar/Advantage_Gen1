@@ -15,24 +15,17 @@ import useAuthStore from "../context/useAuthStore";
 import { Outlet } from "react-router-dom";
 
 function ProtectedRoute() {
+  // Check both zustand store AND localStorage directly
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const [hydrated, setHydrated] = React.useState(false);
+  const tokenInStorage = localStorage.getItem("token") || 
+    (() => { 
+      try { 
+        const s = JSON.parse(localStorage.getItem("advantage-auth"));
+        return s?.state?.token;
+      } catch { return null; }
+    })();
 
-  React.useEffect(() => {
-    if (useAuthStore.persist.hasHydrated()) {
-      setHydrated(true);
-    } else {
-      const unsub = useAuthStore.persist.onFinishHydration(() => {
-        setHydrated(true);
-      });
-      return () => unsub();
-    }
-  }, []);
-
-  // Show blank while rehydrating from localStorage
-  if (!hydrated) return null;
-
-  if (!isAuthenticated) return <Navigate to="/" replace />;
+  if (!isAuthenticated && !tokenInStorage) return <Navigate to="/" replace />;
 
   return <MainLayout />;
 }
