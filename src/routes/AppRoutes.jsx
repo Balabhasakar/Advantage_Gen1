@@ -1,3 +1,4 @@
+import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 
 import Login from "../pages/auth/Login";
@@ -13,23 +14,27 @@ import MainLayout from "../layout/MainLayout";
 import useAuthStore from "../context/useAuthStore";
 import { Outlet } from "react-router-dom";
 
-// ✅ FIXED ProtectedRoute — inline with console.log debug
 function ProtectedRoute() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const [hydrated, setHydrated] = React.useState(false);
 
-  console.log("🔐 ProtectedRoute check — isAuthenticated:", isAuthenticated);
+  React.useEffect(() => {
+    if (useAuthStore.persist.hasHydrated()) {
+      setHydrated(true);
+    } else {
+      const unsub = useAuthStore.persist.onFinishHydration(() => {
+        setHydrated(true);
+      });
+      return () => unsub();
+    }
+  }, []);
 
-  if (!isAuthenticated) {
-    console.log("🚫 NOT authenticated — redirecting to login!");
-    return <Navigate to="/" replace />;
-  }
+  // Show blank while rehydrating from localStorage
+  if (!hydrated) return null;
 
-  console.log("✅ Authenticated — rendering page");
-  return (
-    <>
-      <MainLayout />
-    </>
-  );
+  if (!isAuthenticated) return <Navigate to="/" replace />;
+
+  return <MainLayout />;
 }
 
 export default function AppRoutes() {
