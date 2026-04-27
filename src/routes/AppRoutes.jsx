@@ -14,6 +14,17 @@ import MainLayout from "../layout/MainLayout";
 import useAuthStore from "../context/useAuthStore";
 import { Outlet } from "react-router-dom";
 
+function PublicRoute({ children }) {
+  const tokenInStorage = (() => { 
+    try { 
+      const s = JSON.parse(localStorage.getItem("advantage-auth"));
+      return s?.state?.token;
+    } catch { return null; }
+  })();
+  if (tokenInStorage) return <Navigate to="/dashboard" replace />;
+  return children;
+}
+
 function ProtectedRoute() {
   // Check both zustand store AND localStorage directly
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -34,9 +45,9 @@ export default function AppRoutes() {
   return (
     <Routes>
       {/* PUBLIC */}
-      <Route path="/"       element={<Login />} />
-      <Route path="/login"  element={<Login />} />
-      <Route path="/signup" element={<Signup />} />
+      <Route path="/"       element={<PublicRoute><Login /></PublicRoute>} />
+      <Route path="/login"  element={<PublicRoute><Login /></PublicRoute>} />
+      <Route path="/signup" element={<PublicRoute><Signup /></PublicRoute>} />
 
       {/* PROTECTED */}
       <Route element={<ProtectedRoute />}>
