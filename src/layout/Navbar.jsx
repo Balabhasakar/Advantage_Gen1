@@ -6,11 +6,14 @@ import {
   User,
   LogOut,
 } from "lucide-react";
+import useAuthStore from "../context/useAuthStore";
 
 export default function Navbar() {
   const navigate = useNavigate();
+  const logout = useAuthStore((state) => state.logout);
 
   const handleLogout = () => {
+    logout(); // clears token + localStorage + zustand state
     navigate("/");
   };
 
@@ -72,4 +75,4 @@ export default function Navbar() {
       </div>
     </nav>
   );
-} 
+}
