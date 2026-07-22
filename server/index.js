@@ -75,7 +75,7 @@ function authMiddleware(req, res, next) {
   const token = req.headers.authorization?.split(" ")[1];
   if (!token) return res.status(401).json({ error: "No token provided" });
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || "advantage_secret_key");
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.user = decoded;
     next();
   } catch {
@@ -101,20 +101,19 @@ const PLATFORMS = {
    No API key needed!
 ───────────────────────────────────────── */
 async function generateImage(prompt) {
-  console.log("🎨 Generating image via FLUX...");
+  console.log("🎨 Generating image via HuggingFace...");
   const response = await axios({
-    url:    "https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell",
+    url:    "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell",
     method: "POST",
     headers: {
       Authorization:  `Bearer ${process.env.HF_TOKEN}`,
       "Content-Type": "application/json",
-      Accept:         "image/png",
     },
     data:         { inputs: prompt.slice(0, 500) },
     responseType: "arraybuffer",
     timeout:      120000,
   });
-  console.log(`✅ FLUX responded, size: ${response.data.byteLength} bytes`);
+  console.log(`✅ HuggingFace responded, size: ${response.data.byteLength} bytes`);
   return Buffer.from(response.data, "binary");
 }
 
@@ -700,7 +699,7 @@ app.post("/api/auth/signup", async (req, res) => {
     // Generate token
     const token = jwt.sign(
       { id: user.id, name: user.name, email: user.email },
-      process.env.JWT_SECRET || "advantage_secret_key",
+      process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
 
@@ -735,7 +734,7 @@ app.post("/api/auth/login", async (req, res) => {
     // Generate token
     const token = jwt.sign(
       { id: user.id, name: user.name, email: user.email },
-      process.env.JWT_SECRET || "advantage_secret_key",
+      process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
 
