@@ -101,19 +101,20 @@ const PLATFORMS = {
    No API key needed!
 ───────────────────────────────────────── */
 async function generateImage(prompt) {
-  console.log("🎨 Generating image via HuggingFace...");
+  console.log("🎨 Generating image via FLUX...");
   const response = await axios({
-    url:    "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell",
+    url:    "https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell",
     method: "POST",
     headers: {
       Authorization:  `Bearer ${process.env.HF_TOKEN}`,
       "Content-Type": "application/json",
+      Accept:         "image/png",
     },
     data:         { inputs: prompt.slice(0, 500) },
     responseType: "arraybuffer",
     timeout:      120000,
   });
-  console.log(`✅ HuggingFace responded, size: ${response.data.byteLength} bytes`);
+  console.log(`✅ FLUX responded, size: ${response.data.byteLength} bytes`);
   return Buffer.from(response.data, "binary");
 }
 
