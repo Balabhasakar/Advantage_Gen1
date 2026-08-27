@@ -46,7 +46,7 @@ const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 async function askGroq(prompt) {
   const completion = await groq.chat.completions.create({
-    model:       "llama3-8b-8192",
+    model:       "openai/gpt-oss-20b",
     messages:    [{ role: "user", content: prompt }],
     temperature: 0.8,
     max_tokens:  512,
