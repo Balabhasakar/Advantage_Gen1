@@ -49,7 +49,7 @@ async function askGroq(prompt) {
     model:       "openai/gpt-oss-20b",
     messages:    [{ role: "user", content: prompt }],
     temperature: 0.8,
-    max_tokens:  512,
+    max_tokens:  1024,
   });
   return completion.choices[0].message.content.trim();
 }
@@ -129,6 +129,36 @@ async function enhancePrompt(userPrompt) {
   } catch (err) {
     console.log("⚠️  Prompt enhancement failed, using original");
     return userPrompt;
+  }
+}
+
+// Safe JSON parser — handles truncated/incomplete JSON from LLM
+function safeParseJSON(raw) {
+  try {
+    return safeParseJSON(raw);
+  } catch {
+    // Try to extract JSON object even if truncated
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (match) {
+      try {
+        // Fix truncated strings by completing them
+        let fixed = match[0];
+        // Count quotes to detect unclosed strings
+        const opens = (fixed.match(/"/g) || []).length;
+        if (opens % 2 !== 0) fixed += '"';
+        // Close any open arrays/objects
+        const openBrackets = (fixed.match(/\[/g) || []).length;
+        const closeBrackets = (fixed.match(/\]/g) || []).length;
+        if (openBrackets > closeBrackets) fixed += ']';
+        const openBraces = (fixed.match(/\{/g) || []).length;
+        const closeBraces = (fixed.match(/\}/g) || []).length;
+        if (openBraces > closeBraces) fixed += '}';
+        return JSON.parse(fixed);
+      } catch {
+        return null;
+      }
+    }
+    return null;
   }
 }
 
@@ -284,7 +314,7 @@ app.post("/api/generate-copy", authMiddleware, async (req, res) => {
        { "caption": "...", "hashtags": ["#tag1","#tag2","#tag3","#tag4","#tag5","#tag6","#tag7","#tag8"] }`
     );
 
-    const parsed = JSON.parse(rawText.replace(/```json|```/g, "").trim());
+    const parsed = safeParseJSON(rawText);
     console.log("✅ Copy ready!");
     res.json(parsed);
 
@@ -344,7 +374,7 @@ app.post("/api/generate-all", authMiddleware, async (req, res) => {
            - caption: 2-3 sentences, no hashtags
            - hashtags: exactly 8`
         );
-        return JSON.parse(raw.replace(/```json|```/g, "").trim());
+        return safeParseJSON(raw);
       })(),
     ]);
 
@@ -465,7 +495,7 @@ app.post("/api/generate-variants", authMiddleware, async (req, res) => {
            - caption: 2-3 sentences, no hashtags
            - hashtags: exactly 8`
         );
-        const copy = JSON.parse(raw.replace(/```json|```/g, "").trim());
+        const copy = safeParseJSON(raw);
 
         // ── Step 6: NOT saving to DB here — only save when user picks a winner ──
         variantResults.push({
