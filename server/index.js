@@ -367,12 +367,8 @@ app.post("/api/generate-all", authMiddleware, async (req, res) => {
         const raw = await askGroq(
           `${vp}
            Based on: "${prompt}"
-           Return ONLY JSON, no markdown:
-           { "headline": "...", "caption": "...", "hashtags": ["#tag1","#tag2","#tag3","#tag4","#tag5","#tag6","#tag7","#tag8"] }
-           Rules:
-           - headline: a catchy 3-6 word PRODUCT/BRAND name or ad title that perfectly matches the product being advertised. Make it memorable, specific to the product, like "Brew Bold. Live Green." or "Speed Meets Style" or "Taste the Wild". NO generic phrases like "Your Headline Here"
-           - caption: 2-3 sentences, no hashtags
-           - hashtags: exactly 8`
+           Return ONLY valid JSON, no markdown, no explanation:
+           {"headline":"short catchy title","caption":"2 sentence caption","hashtags":["#tag1","#tag2","#tag3","#tag4","#tag5","#tag6","#tag7","#tag8"]}`
         );
         return safeParseJSON(raw);
       })(),
