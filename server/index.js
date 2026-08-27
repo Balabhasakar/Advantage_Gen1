@@ -46,7 +46,7 @@ const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 async function askGroq(prompt) {
   const completion = await groq.chat.completions.create({
-    model:       "llama-3.3-70b-versatile",
+    model:       "llama3-8b-8192",
     messages:    [{ role: "user", content: prompt }],
     temperature: 0.8,
     max_tokens:  512,
