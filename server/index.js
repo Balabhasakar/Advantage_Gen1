@@ -103,7 +103,7 @@ const PLATFORMS = {
 async function generateImage(prompt) {
   console.log("🎨 Generating image via Pollinations.AI (FLUX)...");
   const encodedPrompt = encodeURIComponent(prompt.slice(0, 500));
-  const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&model=flux&nologo=true&seed=${Math.floor(Math.random() * 99999)}`;
+  const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=512&height=512&model=flux&nologo=true&seed=${Math.floor(Math.random() * 99999)}`;
   const response = await axios({
     url,
     method: "GET",
