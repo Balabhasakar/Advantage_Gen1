@@ -97,8 +97,7 @@ const PLATFORMS = {
    HELPERS
 ───────────────────────────────────────── */
 /* ─────────────────────────────────────────
-   POLLINATIONS.AI — Free image generation
-   No API key needed!
+   HUGGINGFACE FLUX — Image generation
 ───────────────────────────────────────── */
 async function generateImage(prompt) {
   console.log("🎨 Generating image via HuggingFace FLUX...");
@@ -136,33 +135,16 @@ async function enhancePrompt(userPrompt) {
   }
 }
 
-// Safe JSON parser — handles truncated/incomplete JSON from LLM
+// Safe JSON parser
 function safeParseJSON(raw) {
   try {
-    return safeParseJSON(raw);
+    let cleaned = raw;
+    if (cleaned.includes("```json")) cleaned = cleaned.split("```json")[1].split("```")[0];
+    else if (cleaned.includes("```")) cleaned = cleaned.split("```")[1];
+    return JSON.parse(cleaned.trim());
   } catch {
-    // Try to extract JSON object even if truncated
-    const match = raw.match(/\{[\s\S]*\}/);
-    if (match) {
-      try {
-        // Fix truncated strings by completing them
-        let fixed = match[0];
-        // Count quotes to detect unclosed strings
-        const opens = (fixed.match(/"/g) || []).length;
-        if (opens % 2 !== 0) fixed += '"';
-        // Close any open arrays/objects
-        const openBrackets = (fixed.match(/\[/g) || []).length;
-        const closeBrackets = (fixed.match(/\]/g) || []).length;
-        if (openBrackets > closeBrackets) fixed += ']';
-        const openBraces = (fixed.match(/\{/g) || []).length;
-        const closeBraces = (fixed.match(/\}/g) || []).length;
-        if (openBraces > closeBraces) fixed += '}';
-        return JSON.parse(fixed);
-      } catch {
-        return null;
-      }
-    }
-    return null;
+    try { return JSON.parse(raw.trim()); }
+    catch { return null; }
   }
 }
 
