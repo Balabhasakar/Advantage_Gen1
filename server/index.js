@@ -101,16 +101,20 @@ const PLATFORMS = {
    No API key needed!
 ───────────────────────────────────────── */
 async function generateImage(prompt) {
-  console.log("🎨 Generating image via Pollinations.AI (FLUX)...");
-  const encodedPrompt = encodeURIComponent(prompt.slice(0, 500));
-  const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=512&height=512&model=flux&nologo=true&seed=${Math.floor(Math.random() * 99999)}`;
+  console.log("🎨 Generating image via HuggingFace FLUX...");
   const response = await axios({
-    url,
-    method: "GET",
+    url:    "https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell",
+    method: "POST",
+    headers: {
+      Authorization:  `Bearer ${process.env.HF_TOKEN}`,
+      "Content-Type": "application/json",
+      Accept:         "image/png",
+    },
+    data:         { inputs: prompt.slice(0, 500) },
     responseType: "arraybuffer",
-    timeout: 120000,
+    timeout:      120000,
   });
-  console.log(`✅ Pollinations responded, size: ${response.data.byteLength} bytes`);
+  console.log(`✅ FLUX responded, size: ${response.data.byteLength} bytes`);
   return Buffer.from(response.data, "binary");
 }
 
