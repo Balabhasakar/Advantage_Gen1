@@ -100,21 +100,23 @@ const PLATFORMS = {
    HUGGINGFACE FLUX — Image generation
 ───────────────────────────────────────── */
 async function generateImage(prompt) {
-  console.log("🎨 Generating image via HuggingFace FLUX (fal-ai)...");
+  console.log("🎨 Generating image via HuggingFace FLUX...");
   const response = await axios({
-    url:    "https://router.huggingface.co/fal-ai/models/black-forest-labs/FLUX.1-schnell",
+    url:    "https://router.huggingface.co/fal-ai/fal-ai/flux/schnell",
     method: "POST",
     headers: {
       Authorization:  `Bearer ${process.env.HF_TOKEN}`,
       "Content-Type": "application/json",
-      Accept:         "image/png",
     },
-    data:         { inputs: prompt.slice(0, 500) },
-    responseType: "arraybuffer",
-    timeout:      120000,
+    data: { prompt: prompt.slice(0, 500) },
+    timeout: 120000,
   });
-  console.log(`✅ FLUX responded, size: ${response.data.byteLength} bytes`);
-  return Buffer.from(response.data, "binary");
+  console.log(`✅ FLUX responded`);
+  // fal-ai returns JSON with image URL
+  const imageUrl = response.data?.images?.[0]?.url;
+  if (!imageUrl) throw new Error("No image URL in response");
+  const imgResponse = await axios({ url: imageUrl, responseType: "arraybuffer", timeout: 60000 });
+  return Buffer.from(imgResponse.data, "binary");
 }
 
 async function enhancePrompt(userPrompt) {
