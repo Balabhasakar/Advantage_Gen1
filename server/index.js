@@ -174,50 +174,31 @@ async function compositeImage({ imageBuffer, platform = "instagram", logoBuffer 
 
   const compositeOps = [];
 
-  // Step 2: CTA Badge (bottom-left)
+  // Step 2: CTA Badge (bottom-left) — PNG only, no SVG fonts needed
   if (ctaText && ctaText.trim()) {
-    const badgeW    = Math.min(320, Math.floor(w * 0.35));
-    const badgeH    = Math.floor(h * 0.07);
-    const fontSize  = Math.floor(badgeH * 0.42);
-    const padding   = Math.floor(badgeH * 0.25);
-
-    // SVG badge with gradient background
-    // Use sharp to create text badge directly to avoid font issues
-    const ctaBuffer = await sharp({
-      create: {
-        width: badgeW,
-        height: badgeH,
-        channels: 4,
-        background: { r: 124, g: 58, b: 237, alpha: 1 }
-      }
-    })
-    .composite([{
-      input: Buffer.from(`
-        <svg width="${badgeW}" height="${badgeH}" xmlns="http://www.w3.org/2000/svg">
-          <text
-            x="${badgeW / 2}" y="${Math.floor(badgeH * 0.68)}"
-            font-size="${fontSize}"
-            font-weight="bold"
-            fill="white"
-            text-anchor="middle"
-          >${ctaText}</text>
-        </svg>`),
-      top: 0,
-      left: 0,
-    }])
-    .png()
-    .toBuffer();
-    const _ctaSvg = ctaBuffer; // kept for reference
-
-    const margin = Math.floor(w * 0.04);
+    const badgeW  = Math.min(320, Math.floor(w * 0.35));
+    const badgeH  = Math.floor(h * 0.07);
+    const margin  = Math.floor(w * 0.04);
+    const fs      = Math.floor(badgeH * 0.45);
+    const rx      = Math.floor(badgeH * 0.3);
+    const cx      = Math.floor(badgeW / 2);
+    const cy      = Math.floor(badgeH * 0.65);
+    const svgStr  = '<svg width="' + badgeW + '" height="' + badgeH + '" xmlns="http://www.w3.org/2000/svg">'
+      + '<defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="0%">'
+      + '<stop offset="0%" stop-color="#7c3aed"/>'
+      + '<stop offset="100%" stop-color="#06b6d4"/>'
+      + '</linearGradient></defs>'
+      + '<rect width="' + badgeW + '" height="' + badgeH + '" rx="' + rx + '" fill="url(#g)"/>'
+      + '<text x="' + cx + '" y="' + cy + '" font-size="' + fs + '" fill="white" text-anchor="middle" font-weight="bold">'
+      + ctaText + '</text></svg>';
 
     compositeOps.push({
-      input: ctaBuffer,
+      input: Buffer.from(svgStr),
       left:  margin,
       top:   h - badgeH - margin,
     });
 
-    console.log(`✅ CTA badge: "${ctaText}"`);
+    console.log("✅ CTA badge: \"" + ctaText + "\"");
   }
 
   // Step 3: Logo overlay (bottom-right, 18% of image width, 0.85 opacity)
