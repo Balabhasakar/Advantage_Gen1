@@ -19,6 +19,7 @@ const useAuthStore = create(
         sessionStorage.removeItem("lastImg");
         sessionStorage.removeItem("lastCopy");
         sessionStorage.removeItem("previewUser");
+        sessionStorage.removeItem("lastPrompt");
         localStorage.removeItem("token");
         set({ isAuthenticated: false, user: null, token: null });
       },
