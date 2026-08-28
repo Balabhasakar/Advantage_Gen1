@@ -43,7 +43,7 @@ export default function Navbar() {
 
           <NavLink to="/ad-studio" className={linkClass}>
             <Wand2 size={16} />
-            Ad Studio
+            Ad Studio 
           </NavLink>
 
           <NavLink to="/history" className={linkClass}>
