@@ -186,17 +186,17 @@ async function compositeImage({ imageBuffer, platform = "instagram", logoBuffer 
       <svg width="${badgeW}" height="${badgeH}" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" style="stop-color:#7c3aed"/>
-            <stop offset="100%" style="stop-color:#06b6d4"/>
+            <stop offset="0%" stop-color="#7c3aed"/>
+            <stop offset="100%" stop-color="#06b6d4"/>
           </linearGradient>
         </defs>
         <rect width="${badgeW}" height="${badgeH}" rx="${Math.floor(badgeH * 0.3)}" fill="url(#g)"/>
         <text
-          x="${badgeW / 2}" y="${badgeH / 2 + fontSize * 0.35}"
-          font-family="Arial, sans-serif"
+          x="${badgeW / 2}" y="${Math.floor(badgeH * 0.68)}"
+          font-family="Liberation Sans, FreeSans, DejaVu Sans, Arial, sans-serif"
           font-size="${fontSize}"
           font-weight="bold"
-          fill="white"
+          fill="#ffffff"
           text-anchor="middle"
         >${ctaText}</text>
       </svg>`;
