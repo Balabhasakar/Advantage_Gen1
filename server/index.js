@@ -182,27 +182,34 @@ async function compositeImage({ imageBuffer, platform = "instagram", logoBuffer 
     const padding   = Math.floor(badgeH * 0.25);
 
     // SVG badge with gradient background
-    const ctaSvg = `
-      <svg width="${badgeW}" height="${badgeH}" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stop-color="#7c3aed"/>
-            <stop offset="100%" stop-color="#06b6d4"/>
-          </linearGradient>
-        </defs>
-        <rect width="${badgeW}" height="${badgeH}" rx="${Math.floor(badgeH * 0.3)}" fill="url(#g)"/>
-        <text
-          x="${badgeW / 2}" y="${Math.floor(badgeH * 0.68)}"
-          font-family="Liberation Sans, FreeSans, DejaVu Sans, Arial, sans-serif"
-          font-size="${fontSize}"
-          font-weight="bold"
-          fill="#ffffff"
-          text-anchor="middle"
-        >${ctaText}</text>
-      </svg>`;
+    // Use sharp to create text badge directly to avoid font issues
+    const ctaBuffer = await sharp({
+      create: {
+        width: badgeW,
+        height: badgeH,
+        channels: 4,
+        background: { r: 124, g: 58, b: 237, alpha: 1 }
+      }
+    })
+    .composite([{
+      input: Buffer.from(`
+        <svg width="${badgeW}" height="${badgeH}" xmlns="http://www.w3.org/2000/svg">
+          <text
+            x="${badgeW / 2}" y="${Math.floor(badgeH * 0.68)}"
+            font-size="${fontSize}"
+            font-weight="bold"
+            fill="white"
+            text-anchor="middle"
+          >${ctaText}</text>
+        </svg>`),
+      top: 0,
+      left: 0,
+    }])
+    .png()
+    .toBuffer();
+    const _ctaSvg = ctaBuffer; // kept for reference
 
-    const ctaBuffer = Buffer.from(ctaSvg);
-    const margin    = Math.floor(w * 0.04);
+    const margin = Math.floor(w * 0.04);
 
     compositeOps.push({
       input: ctaBuffer,
