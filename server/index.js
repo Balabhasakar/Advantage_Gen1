@@ -100,9 +100,9 @@ const PLATFORMS = {
    HUGGINGFACE FLUX — Image generation
 ───────────────────────────────────────── */
 async function generateImage(prompt) {
-  console.log("🎨 Generating image via HuggingFace FLUX...");
+  console.log("🎨 Generating image via HuggingFace FLUX (fal-ai)...");
   const response = await axios({
-    url:    "https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell",
+    url:    "https://router.huggingface.co/fal-ai/models/black-forest-labs/FLUX.1-schnell",
     method: "POST",
     headers: {
       Authorization:  `Bearer ${process.env.HF_TOKEN}`,
